@@ -10,8 +10,7 @@ export default function RadioPage() {
 
   // 1. 获取数据
   useEffect(() => {
-    // 确保这里的路径与你的 route.js 所在目录一致
-    fetch('/api/radio') 
+    fetch('/api/local') 
       .then(res => res.json())
       .then(json => {
         if (json.success) {
@@ -69,7 +68,7 @@ export default function RadioPage() {
           {filteredStations.map((station) => (
             <a
               key={station.id || station.title}
-              href={`/api/radio?name=${encodeURIComponent(station.title)}`}
+              href={`/api/local?name=${encodeURIComponent(station.title)}`}
               target="_blank"
               rel="noreferrer"
               className="group p-4 bg-white hover:bg-blue-50 border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
