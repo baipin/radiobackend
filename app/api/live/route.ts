@@ -1,4 +1,6 @@
+// app/api/live/route.ts
 import { NextResponse } from 'next/server';
+
 export const dynamic = 'force-dynamic';
 
 const ORIGINAL_URL = 'https://ytmsout.radio.cn/web/appBroadcast/list?categoryId=0&provinceCode=0';
@@ -18,49 +20,74 @@ export async function GET(request: Request) {
     const json = await res.json();
     const channels = json.data || [];
 
+    // ==================== 1. 不带 name 参数：返回频道列表 ====================
     if (!name) {
-      // ... 你的原有返回所有频道的逻辑不变
-      const result = channels.map((item: any) => ({ ... }));
-      return NextResponse.json({ success: true, channels: result }, { headers: { 'Access-Control-Allow-Origin': '*' } });
+      const result = channels.map((item: any) => ({
+        title: item.title,
+        subtitle: item.subtitle || '',
+        image: item.image,
+        contentId: item.contentId,
+        streamUrl: item.playUrlMulti || item.mp3PlayUrlHigh || item.mp3PlayUrlLow || item.playUrlLow,
+        allUrls: {
+          playUrlMulti: item.playUrlMulti,
+          mp3PlayUrlHigh: item.mp3PlayUrlHigh,
+          mp3PlayUrlLow: item.mp3PlayUrlLow,
+          playUrlLow: item.playUrlLow,
+        }
+      }));
+
+      return NextResponse.json({
+        success: true,
+        count: result.length,
+        channels: result,
+        updatedAt: new Date().toISOString(),
+      }, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, s-maxage=30',
+        }
+      });
     }
 
-    // ==================== 带 name 参数：代理直播流 ====================
+    // ==================== 2. 带 name 参数：代理直播流（关键修复） ====================
     const channel = channels.find((item: any) =>
-      item.title?.includes(name.trim())
+      item.title && item.title.includes(name.trim())
     );
 
-    if (!channel) return NextResponse.json({ success: false, error: '未找到频道' }, { status: 404 });
+    if (!channel) {
+      return NextResponse.json({ success: false, error: '未找到该频道' }, { status: 404 });
+    }
 
-    let streamUrl = channel.playUrlMulti || channel.mp3PlayUrlHigh || 
-                   channel.mp3PlayUrlLow || channel.playUrlLow;
+    let streamUrl = channel.playUrlMulti ||
+                   channel.mp3PlayUrlHigh ||
+                   channel.mp3PlayUrlLow ||
+                   channel.playUrlLow;
 
-    if (!streamUrl) return NextResponse.json({ success: false, error: '无直播源' }, { status: 404 });
+    if (!streamUrl) {
+      return NextResponse.json({ success: false, error: '该频道暂无直播源' }, { status: 404 });
+    }
 
-    // ====================== 关键修改：代理流 ======================
+    // ==================== 代理真实流 ====================
     const streamRes = await fetch(streamUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S9110) AppleWebKit/537.36',
         'Accept': '*/*',
+        'Connection': 'keep-alive',
       },
-      // 保持长连接
     });
 
     if (!streamRes.ok) {
       return NextResponse.json({ success: false, error: '上游流不可用' }, { status: 502 });
     }
 
-    // 构造响应
     const headers = new Headers({
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-cache',
-      'Content-Type': 'audio/mpeg',           // MP3 用这个，AAC 可改成 audio/aac
-      // 'Content-Type': 'application/vnd.apple.mpegurl', // 如果想强伪装 HLS
-      'icy-name': channel.title || 'Radio Stream',   // Shoutcast/Icecast 元数据
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Content-Type': streamRes.headers.get('Content-Type') || 'audio/mpeg',
+      'icy-name': channel.title || 'Live Radio',
       'icy-description': 'Proxy Stream',
+      'icy-pub': '1',
     });
-
-    // 如果想让 ExoPlayer 更认为它是 HLS，可以伪造路径（可选）
-    // 但更重要的是返回正确的流内容
 
     return new NextResponse(streamRes.body, {
       status: 200,
@@ -68,7 +95,10 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, error: '服务器错误' }, { status: 500 });
+    console.error('Proxy Error:', error);
+    return NextResponse.json({
+      success: false,
+      error: '服务器错误'
+    }, { status: 500 });
   }
 }
