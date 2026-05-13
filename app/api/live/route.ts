@@ -62,12 +62,17 @@ export async function GET(request: Request) {
                      channel.mp3PlayUrlLow || 
                      channel.playUrlLow;
 
+    let finalStreamUrl = streamUrl;
+    if (finalStreamUrl && finalStreamUrl.startsWith('http://')) {
+      finalStreamUrl = finalStreamUrl.replace('http://', 'https://');
+    }
+
     if (!streamUrl) {
       return NextResponse.json({ success: false, error: '该频道暂无直播源' }, { status: 404 });
     }
 
     // 直接跳转（推荐用于播放）
-    return NextResponse.redirect(streamUrl, {
+    return NextResponse.redirect(finalStreamUrl, {
       status: 302,
       headers: {
         'Access-Control-Allow-Origin': '*',
