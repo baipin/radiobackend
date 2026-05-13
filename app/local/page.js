@@ -28,7 +28,7 @@ export default function RadioPage() {
             {city.stations.map(station => (
               <a
                 key={station.contentId}
-                href={`/api/radio?name=${encodeURIComponent(station.title)}`}
+                href={`/api/local?name=${encodeURIComponent(station.title)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="p-3 bg-gray-100 hover:bg-blue-100 rounded-lg transition-colors border border-gray-200 block text-sm"
