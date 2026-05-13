@@ -6,9 +6,13 @@ export default function Home() {
         <p className="text-xl text-zinc-400 mb-10">中国广播直播源动态代理</p>
         
         <div className="bg-zinc-900 p-8 rounded-2xl text-left font-mono text-sm">
-          <p className="mb-4">全部频道：</p>
+          <p className="mb-4">全部频道（央广）：</p>
           <a href="/api/live" target="_blank" className="text-blue-400 hover:underline block mb-2">
             → /api/live
+          </a>
+          <p className="mb-4">全部频道（所有）：</p>
+          <a href="/api/local" target="_blank" className="text-blue-400 hover:underline block mb-2">
+            → /api/local
           </a>
           <p className="mt-6 mb-2">单个频道示例：</p>
           <a href="/api/live?name=中国之声" target="_blank" className="text-blue-400 hover:underline block">
