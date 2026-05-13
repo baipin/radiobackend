@@ -10,17 +10,22 @@ export async function GET(request: Request) {
   const name = searchParams.get('name');
 
   try {
-    const res = await fetch(ORIGINAL_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Radio-Proxy)' },
+    // ==================== 获取频道列表 ====================
+    const listRes = await fetch(ORIGINAL_URL, {
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (compatible; Radio-Proxy)',
+        'Accept': 'application/json'
+      },
       next: { revalidate: 30 },
     });
 
-    if (!res.ok) throw new Error('上游接口错误');
+    if (!listRes.ok) {
+      throw new Error(`上游列表接口错误: ${listRes.status}`);
+    }
 
-    const json = await res.json();
-    const channels = json.data || [];
+    const json = await listRes.json();
+    const channels = json?.data || [];
 
-    // ==================== 1. 不带 name 参数：返回频道列表 ====================
     if (!name) {
       const result = channels.map((item: any) => ({
         title: item.title,
@@ -42,14 +47,11 @@ export async function GET(request: Request) {
         channels: result,
         updatedAt: new Date().toISOString(),
       }, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, s-maxage=30',
-        }
+        headers: { 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // ==================== 2. 带 name 参数：代理直播流（关键修复） ====================
+    // ==================== 查找频道并代理流 ====================
     const channel = channels.find((item: any) =>
       item.title && item.title.includes(name.trim())
     );
@@ -67,38 +69,53 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: '该频道暂无直播源' }, { status: 404 });
     }
 
-    // ==================== 代理真实流 ====================
+    // ==================== 关键：代理直播流 ====================
     const streamRes = await fetch(streamUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S9110) AppleWebKit/537.36',
         'Accept': '*/*',
         'Connection': 'keep-alive',
+        'Icy-MetaData': '1',
       },
     });
 
     if (!streamRes.ok) {
-      return NextResponse.json({ success: false, error: '上游流不可用' }, { status: 502 });
+      console.error(`上游流返回 ${streamRes.status}`);
+      return NextResponse.json({ 
+        success: false, 
+        error: `上游流不可用 (${streamRes.status})` 
+      }, { status: 502 });
     }
 
-    const headers = new Headers({
+    // 构造响应头
+    const responseHeaders = new Headers({
       'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Content-Type': streamRes.headers.get('Content-Type') || 'audio/mpeg',
       'icy-name': channel.title || 'Live Radio',
       'icy-description': 'Proxy Stream',
       'icy-pub': '1',
+      'icy-br': '128',
     });
 
+    // 返回流（兼容 Vercel）
     return new NextResponse(streamRes.body, {
       status: 200,
-      headers,
+      headers: responseHeaders,
     });
 
-  } catch (error) {
-    console.error('Proxy Error:', error);
+  } catch (error: any) {
+    console.error('【Proxy 500 Error】:', error.message || error);
+    console.error('Stack:', error.stack);
+
     return NextResponse.json({
       success: false,
-      error: '服务器错误'
-    }, { status: 500 });
+      error: '服务器内部错误',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { 
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    });
   }
 }
