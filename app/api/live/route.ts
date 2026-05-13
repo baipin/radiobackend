@@ -8,18 +8,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const name = searchParams.get('name');
 
-  // 如果没有 name 参数，返回所有频道（JSON格式，保持兼容）
-  if (!name) {
-    return NextResponse.json({ 
-      success: true, 
-      message: "请使用 ?name=频道名称 参数获取单个直播源" 
-    });
-  }
-
   try {
     const res = await fetch(ORIGINAL_URL, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Radio-Proxy)' },
-      next: { revalidate: 25 },
+      next: { revalidate: 30 },
     });
 
     if (!res.ok) throw new Error('上游接口错误');
@@ -27,7 +19,36 @@ export async function GET(request: Request) {
     const json = await res.json();
     const channels = json.data || [];
 
-    // 查找匹配的频道（模糊匹配）
+    // ==================== 1. 不带 name 参数：返回所有频道完整信息 ====================
+    if (!name) {
+      const result = channels.map((item: any) => ({
+        title: item.title,
+        subtitle: item.subtitle || '',
+        image: item.image,
+        contentId: item.contentId,
+        streamUrl: item.playUrlMulti || item.mp3PlayUrlHigh || item.mp3PlayUrlLow || item.playUrlLow,
+        allUrls: {
+          playUrlMulti: item.playUrlMulti,
+          mp3PlayUrlHigh: item.mp3PlayUrlHigh,
+          mp3PlayUrlLow: item.mp3PlayUrlLow,
+          playUrlLow: item.playUrlLow,
+        }
+      }));
+
+      return NextResponse.json({
+        success: true,
+        count: result.length,
+        channels: result,
+        updatedAt: new Date().toISOString(),
+      }, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, s-maxage=30',
+        }
+      });
+    }
+
+    // ==================== 2. 带 name 参数：直接 302 跳转到直播流 ====================
     const channel = channels.find((item: any) => 
       item.title && item.title.includes(name.trim())
     );
@@ -36,7 +57,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: '未找到该频道' }, { status: 404 });
     }
 
-    // 获取最佳直播源
     const streamUrl = channel.playUrlMulti || 
                      channel.mp3PlayUrlHigh || 
                      channel.mp3PlayUrlLow || 
@@ -46,9 +66,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: '该频道暂无直播源' }, { status: 404 });
     }
 
-    // ============== 关键：直接跳转到真实直播地址 ==============
+    // 直接跳转（推荐用于播放）
     return NextResponse.redirect(streamUrl, {
-      status: 302,                    // 临时重定向
+      status: 302,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=30',
@@ -59,7 +79,7 @@ export async function GET(request: Request) {
     console.error(error);
     return NextResponse.json({ 
       success: false, 
-      error: '获取直播源失败' 
+      error: '服务器错误' 
     }, { status: 500 });
   }
 }
