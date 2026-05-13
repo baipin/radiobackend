@@ -6,7 +6,7 @@ export default function RadioPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/radio')
+    fetch('/api/local')
       .then(res => res.json())
       .then(json => {
         setData(json);
