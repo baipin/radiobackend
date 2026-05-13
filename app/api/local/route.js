@@ -82,14 +82,27 @@ export async function GET(request) {
   const allStations = globalCache.data;
 
   // 场景 A: 指定电台 302 重定向
-  if (name) {
-    const match = allStations.find(s => s.title?.includes(name.trim()));
-    if (match) {
-        const streamUrl = match.mp3PlayUrlHigh || match.playUrlMulti || match.mp3PlayUrlLow;
-        return NextResponse.redirect(streamUrl, { status: 302 });
+if (name) {
+  const match = allStations.find(s => s.title?.includes(name.trim()));
+  if (match) {
+    let streamUrl = match.mp3PlayUrlHigh || match.playUrlMulti || match.mp3PlayUrlLow;
+    
+    if (streamUrl) {
+      try {
+        // 解析 URL 并强制使用 https
+        const url = new URL(streamUrl);
+        url.protocol = 'https:';
+        streamUrl = url.toString();
+      } catch (e) {
+        // 如果 URL 无效，保持原样
+        console.error('Invalid URL:', streamUrl);
+      }
     }
-    return NextResponse.json({ error: "未找到电台" }, { status: 404 });
+    
+    return NextResponse.redirect(streamUrl, { status: 302 });
   }
+  return NextResponse.json({ error: "未找到电台" }, { status: 404 });
+}
 
   // 场景 B: 返回全量列表
   return NextResponse.json({
