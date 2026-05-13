@@ -3,9 +3,9 @@ import './globals.css';
 
 // 1. 设置元数据：对 SEO 和书签更友好
 export const metadata: Metadata = {
-  title: '全国广播电台直播 - 在线收听',
+  title: '全国广播电台直播源查询 - 百品电台开发者工具箱',
   description: '免费提供全国各地广播电台直播源，支持一键收听，高音质动态更新。',
-  keywords: '广播直播, 蜻蜓FM, 云听, 电台直播源, M3U8, 在线收听',
+  keywords: '广播直播,  M3U8, 在线收听, 直播源',
 };
 
 // 2. 移动端优化：防止页面缩放，提升点击体验
