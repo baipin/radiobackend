@@ -10,9 +10,13 @@ export default function Home() {
           <a href="/api/live" target="_blank" className="text-blue-400 hover:underline block mb-2">
             → /api/live
           </a>
-          <p className="mb-4">全部频道（所有）：</p>
+          <p className="mb-4">全部频道（所有,raw）：</p>
           <a href="/api/local" target="_blank" className="text-blue-400 hover:underline block mb-2">
             → /api/local
+          </a>
+          <p className="mb-4">全部频道（所有,简单html）：</p>
+          <a href="/local" target="_blank" className="text-blue-400 hover:underline block mb-2">
+            → /local
           </a>
           <p className="mt-6 mb-2">单个频道示例：</p>
           <a href="/api/live?name=中国之声" target="_blank" className="text-blue-400 hover:underline block">
