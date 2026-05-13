@@ -8,7 +8,6 @@ export default function RadioPage() {
   const [meta, setMeta] = useState({ count: 0, lastUpdated: '' });
   const [loading, setLoading] = useState(true);
 
-  // 1. 获取数据
   useEffect(() => {
     fetch('/api/local') 
       .then(res => res.json())
@@ -26,7 +25,6 @@ export default function RadioPage() {
       });
   }, []);
 
-  // 2. 前端搜索过滤逻辑
   useEffect(() => {
     const results = stations.filter(s =>
       s.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -35,65 +33,184 @@ export default function RadioPage() {
   }, [searchTerm, stations]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p className="text-gray-600">正在同步全量电台数据...</p>
-      </div>
+    <div style={styles.loadingContainer}>
+      <div style={styles.spinner}></div>
+      <p style={styles.loadingText}>正在同步全量电台数据...</p>
     </div>
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto font-sans">
-      {/* 头部区域 */}
-      <div className="mb-8 sticky top-0 bg-white py-4 z-10 border-b">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">全国广播电台在线</h1>
-        <p className="text-sm text-gray-500 mb-4">
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>📻 全国广播电台在线</h1>
+        <p style={styles.subtitle}>
           共收录 {meta.count} 个频道 | 更新于: {meta.lastUpdated}
         </p>
         
-        {/* 搜索框 */}
         <input
           type="text"
-          placeholder="输入电台名称，搜索全国电台..."
-          className="w-full p-3 border-2 border-blue-100 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm"
+          placeholder="🔍 输入电台名称，搜索全国电台..."
+          style={styles.searchInput}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* 列表区域 */}
       {filteredStations.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredStations.map((station) => (
+        <div style={styles.grid}>
+          {filteredStations.map((station, index) => (
             <a
-              key={station.id || station.title}
+              key={station.id || station.title || index}
               href={`/api/local?name=${encodeURIComponent(station.title)}`}
               target="_blank"
               rel="noreferrer"
-              className="group p-4 bg-white hover:bg-blue-50 border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              style={styles.card}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0,0,0,0.1)';
+              }}
             >
               <div>
-                <h3 className="font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
-                  {station.title}
-                </h3>
-                <span className="text-xs text-gray-400 mt-1 block">ID: {station.id || 'N/A'}</span>
+                <h3 style={styles.cardTitle}>{station.title}</h3>
+                <span style={styles.cardId}>ID: {station.id || station.contentId || 'N/A'}</span>
               </div>
-              <div className="mt-4 flex items-center text-blue-500 text-sm font-medium">
+              <div style={styles.playButton}>
                 点击收听 
-                <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <span style={styles.playIcon}>▶</span>
               </div>
             </a>
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 text-gray-400">
+        <div style={styles.emptyState}>
           未找到包含 "{searchTerm}" 的电台
         </div>
       )}
     </div>
   );
+}
+
+// 样式定义
+const styles = {
+  container: {
+    padding: '1rem',
+    maxWidth: '1280px',
+    margin: '0 auto',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    backgroundColor: '#f9fafb',
+    minHeight: '100vh'
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '100vh',
+    backgroundColor: '#f9fafb'
+  },
+  spinner: {
+    width: '48px',
+    height: '48px',
+    border: '4px solid #e5e7eb',
+    borderTopColor: '#3b82f6',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  loadingText: {
+    marginTop: '1rem',
+    color: '#6b7280'
+  },
+  header: {
+    position: 'sticky',
+    top: 0,
+    backgroundColor: '#f9fafb',
+    padding: '1rem 0',
+    borderBottom: '2px solid #e5e7eb',
+    marginBottom: '2rem',
+    zIndex: 10
+  },
+  title: {
+    fontSize: '1.875rem',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '0.5rem'
+  },
+  subtitle: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    marginBottom: '1rem'
+  },
+  searchInput: {
+    width: '100%',
+    padding: '0.75rem',
+    border: '2px solid #d1d5db',
+    borderRadius: '0.75rem',
+    fontSize: '1rem',
+    outline: 'none',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box'
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '1rem'
+  },
+  card: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    padding: '1rem',
+    backgroundColor: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '0.75rem',
+    textDecoration: 'none',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer'
+  },
+  cardTitle: {
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: '0.5rem',
+    fontSize: '1rem'
+  },
+  cardId: {
+    fontSize: '0.75rem',
+    color: '#9ca3af'
+  },
+  playButton: {
+    marginTop: '1rem',
+    display: 'flex',
+    alignItems: 'center',
+    color: '#3b82f6',
+    fontSize: '0.875rem',
+    fontWeight: '500'
+  },
+  playIcon: {
+    marginLeft: '0.25rem',
+    fontSize: '0.75rem'
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '5rem',
+    color: '#9ca3af'
+  }
+};
+
+// 添加动画
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+  `;
+  document.head.appendChild(styleSheet);
 }
