@@ -1,6 +1,7 @@
-export const config = {
-  runtime: 'nodejs', // 必须使用 Node.js 环境
-};
+import { NextRequest, NextResponse } from 'next/server';
+
+// 强制指定使用 Node.js 运行时（App Router 的新版写法）
+export const runtime = 'nodejs';
 
 export default async function handler(req, res) {
   // 1. 从 URL 参数中动态获取用户传入的 aac 地址
