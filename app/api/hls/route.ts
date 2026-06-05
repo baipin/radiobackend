@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 强制指定使用 Node.js 运行时（App Router 的新版写法）
+// 1. 正确的运行时声明
 export const runtime = 'nodejs';
 
-export default async function handler(req, res) {
-  // 1. 从 URL 参数中动态获取用户传入的 aac 地址
-  // 例如请求：https://xxx.vercel.app/api/proxy?url=http://example.com/live.aac
-  const { url: aacUrl } = req.query;
+// 2. 正确的导出名称：必须大写 GET，且不能使用 export default
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const aacUrl = searchParams.get('url');
 
   if (!aacUrl) {
-    return res.status(400).json({ error: 'Missing "url" parameter' });
+    return NextResponse.json({ error: 'Missing "url" parameter' }, { status: 400 });
   }
 
   try {
-    // 2. 动态发起对远端 AAC 的请求
     const response = await fetch(aacUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -21,30 +20,46 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      return res.status(response.status).send(`无法获取目标流: ${response.statusText}`);
+      return new NextResponse(`无法获取目标流: ${response.statusText}`, { status: response.status });
     }
 
-    // 3. 伪装成一个分块传输的长连接音频
-    res.writeHead(200, {
-      'Content-Type': 'audio/aac',
-      'Transfer-Encoding': 'chunked', // 🌟 核心：分块传输，欺骗系统网络层
-      'Connection': 'keep-alive',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    const remoteStream = response.body;
+    if (!remoteStream) {
+      return new NextResponse('无法读取目标流的 Body', { status: 502 });
+    }
+
+    const reader = remoteStream.getReader();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              controller.close();
+              break;
+            }
+            controller.enqueue(value);
+          }
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+      cancel() {
+        reader.cancel();
+      }
     });
 
-    const reader = response.body.getReader();
-
-    // 4. 动态双向管道读写
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      res.write(value); // 动态写入，有多少发多少
-    }
+    return new NextResponse(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'audio/aac',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Connection': 'keep-alive',
+      },
+    });
 
   } catch (error) {
     console.error('动态转发失败:', error);
-    if (!res.writableEnded) {
-      res.end();
-    }
+    return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
